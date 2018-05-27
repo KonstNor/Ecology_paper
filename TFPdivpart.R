@@ -1,0 +1,5 @@
+TFPdivpart <-
+function (...) 
+{
+   UseMethod("TFPdivpart")
+}
