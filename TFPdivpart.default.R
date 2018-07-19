@@ -1,9 +1,39 @@
-TFPdivpart.default <-
-  function(y, x, index=c("richness", "Simpson", "RaoFD", "RaoPD"),
+###############################################################################################################################################
+# TFPdivpart: R function to perform additive partitionning of taxonomic (Simpson index), functional and phylogenetic diversity (Rao index)
+#             and null model testing
+# The script integrates two functions: "Rao" by de Bello et al.(J Veg Sci, 2010), and "adipart" in the package vegan.
+# Author: Konstantinia Dede, konstantina.dede@gmail.com
+# 
+#
+# INPUTS:                                                                                 
+#   - "y": matrix of abundances (c x s) of the s species for the c local communities
+#   - "x": matrix with c rows as in matrix "y", columns coding the levels of sampling hierarchy. The number of groups within 
+#          the hierarchy must decrease from left to right  
+#   - "index": character, a diversity index to be calculated
+#   - "weights": argument "unif" for uniform weights, "prop" for weighting proportional to sample abundances to use in 
+#                weighted averaging of individual alpha values within strata of a given level of the sampling hierarchy 
+#   - "relative": logical, if TRUE then alpha and beta diversity values are given relative to the value of gamma 
+#   - "nsimul": number of permutations 
+#   - "method": null model method: either a name (character string) of a method defined in make.commsim or a commsim function (vegan package)
+#	- "fundiv": matrix (s x s) or dist object with pairwise functional trait distances between the s species
+#   - "phyldiv": matrix (s x s) or dist object for phylogenetic distances
+#   - "VMcor": logical, defining if the correction by Villeger & Mouillot (J Ecol, 2008) is applied or not
+#   - "Jost": logical, defining if the correction by Jost (Ecology, 2007) is applied 
+#   ...	Other arguments passed to functions, e.g. method, thin or burnin arguments for oecosimu function (vegan package)
+#
+# DETAILS: 
+# Additive partitioning is performed on taxonomic diversity (Simpson's index), functional and phylogenetic diversity (Rao's index).
+# The results are compared to expected values from nsimul permutations by individual based randomisation of the community data matrix.
+# This is done by the "r2dtable" method in oecosimu by default. 
+#
+#
+
+
+TFPdivpart <- function(y, x, index=c("richness", "Simpson", "RaoFD", "RaoPD"),
            weights=c("unif", "prop"), relative = FALSE, nsimul=99,
            method = "r2dtable", fundiv = NULL, phyldiv = NULL, 
-           weight = FALSE, Jost = FALSE, structure = NULL, ...)
-  {
+           VMcor = FALSE, Jost = FALSE, ...)
+  { 
     ## evaluate formula
     lhs <- as.matrix(y)
     if (missing(x))
@@ -55,30 +85,37 @@ TFPdivpart.default <-
     base <- if (is.null(list(...)$base))
       exp(1) else list(...)$base
     
+   
+       
     ## evaluate other arguments
-    index <- match.arg(index)
+    index <- match.arg(index)  
     weights <- match.arg(weights)
+    
+    ## checking absence in 'fundiv' for RaoFD index
+    if (is.null(fundiv) && index == "RaoFD")  stop("'fundiv': dist object is missing")
+    ## checking absence in 'phyldiv' for RaoPD index
+    if (is.null(phyldiv) && index == "RaoPD")  stop("'phyldiv': dist object is missing")
     ####function Rao by de Bello et al.(J Veg Sci, 2010)#####
     if(Jost){
       
       switch(index,
              "richness" = {divfun <- function(x) rowSums(x > 0)},
              
-             "Simpson" = {divfun <- function(x) Rao(t(x), dfunc = NULL, dphyl = NULL, weight=FALSE, Jost=TRUE, structure=NULL)$TD$Alpha},
+             "Simpson" = {divfun <- function(x) Rao(t(x), dfunc = NULL, dphyl = NULL, weight=VMcor, Jost=TRUE, structure=NULL)$TD$Alpha},             
              
-             "RaoFD" = {divfun <- function(x) Rao(t(x), dfunc=fundiv, dphyl=NULL, weight=FALSE, Jost=TRUE, structure=NULL)$FD$Alpha},
+             "RaoFD" = {divfun <- function(x) Rao(t(x), dfunc=fundiv, dphyl=NULL, weight=VMcor, Jost=TRUE, structure=NULL)$FD$Alpha},
              
-             "RaoPD" = {divfun <- function(x) Rao(t(x), dfunc=NULL, dphyl=phyldiv, weight=FALSE, Jost=TRUE, structure=NULL)$PD$Alpha})
+             "RaoPD" = {divfun <- function(x) Rao(t(x), dfunc=NULL, dphyl=phyldiv, weight=VMcor, Jost=TRUE, structure=NULL)$PD$Alpha})
     } else {
       
       switch(index,
              "richness" = {divfun <- function(x) rowSums(x > 0)},
              
-             "Simpson" = {divfun <- function(x) Rao(t(x), dfunc = NULL, dphyl = NULL, weight=FALSE, Jost=FALSE, structure=NULL)$TD$Alpha},
+             "Simpson" = {divfun <- function(x) Rao(t(x), dfunc = NULL, dphyl = NULL, weight=VMcor, Jost=FALSE, structure=NULL)$TD$Alpha},
              
-             "RaoFD" = {divfun <- function(x) Rao(t(x), dfunc=fundiv, dphyl=NULL, weight=FALSE, Jost=FALSE, structure=NULL)$FD$Alpha},
+             "RaoFD" = {divfun <- function(x) Rao(t(x), dfunc=fundiv, dphyl=NULL, weight=VMcor, Jost=FALSE, structure=NULL)$FD$Alpha},
              
-             "RaoPD" = {divfun <- function(x) Rao(t(x), dfunc=NULL, dphyl=phyldiv, weight=FALSE, Jost=FALSE, structure=NULL)$PD$Alpha})
+             "RaoPD" = {divfun <- function(x) Rao(t(x), dfunc=NULL, dphyl=phyldiv, weight=VMcor, Jost=FALSE, structure=NULL)$PD$Alpha})
       
     }
     
@@ -125,3 +162,27 @@ TFPdivpart.default <-
     class(sim) <- c("TFPdivpart", class(sim))
     sim
   }
+  
+  
+###################################################################################################################################
+#--------------------------------------------------EXAMPLES-----------------------------------------------------------------------#
+###################################################################################################################################  
+#generate a random trait matrix
+trait_mat = matrix(c(0.60, 0.05, 0.20, 0, 0.25, 0.75, 0,0, 0.5, 0, 0.25, 0.5, 0.25, 0.25, 0.45, 0.25) , nrow = 4, ncol = 4, T)  
+row.names(trait_mat) = c("sp1","sp2","sp3","sp4")
+#find the dissimilarity or dist objest in functional traits
+diss_trait_mat = dist(trait_mat)  
+#generate a random table of abundances
+abund = data.frame("sp1" = c(0,3,0,4), "sp2" = c(1,2,0,0), "sp3" = c(15,0,2,9), "sp4" = c(1,5,2,10))
+row.names(abund) = c("S1","S2","S3","S4")
+#calculate additive partitioning of functional diversity
+TFPdivpart(abund, index="RaoFD", nsimul=19, fundiv = diss_trait_mat, Jost = F)
+
+
+#with levels of sampling hierarchy
+hier = with(abund, data.frame("l1" = 1:nrow(abund),
+                "l2" = c(1,2,3,1),
+                "l3" = c(1,2,2,1),
+                "l4" = c(1,1,1,1)))               
+TFPdivpart(abund, hier, index="Simpson", nsimul=19)                
+TFPdivpart(abund, hier, index="RaoFD", nsimul=19, fundiv = diss_trait_mat, Jost = F)
