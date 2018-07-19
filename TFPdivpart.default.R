@@ -1,8 +1,7 @@
 ###############################################################################################################################################
 # TFPdivpart: R function to perform additive partitionning of taxonomic (Simpson index), functional and phylogenetic diversity (Rao index)
 #             and null model testing
-# The script integrates two functions: "Rao" by de Bello et al.(J Veg Sci, 2010), and "adipart" in the package vegan.
-# Author: Konstantinia Dede, konstantina.dede@gmail.com
+# 
 # 
 #
 # INPUTS:                                                                                 
